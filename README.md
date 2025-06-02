@@ -1,6 +1,12 @@
 # GRRIEn_template
 Template that can be used GRRIEn model development
 
+# Background:
+Describe the project and give an overview
+
+# Instructions:
+Give an overview of the repository structure amd use cases
+
 ## 1. Run ./code/setup.sh
 
 
