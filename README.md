@@ -1,10 +1,10 @@
 # GRRIEn_template
 Template that can be used GRRIEn model development
 
-# Background:
+**Background:**
 Describe the project and give an overview
 
-# Instructions:
+**Instructions:**
 Give an overview of the repository structure amd use cases
 
 ## 1. Run ./code/setup.sh
@@ -20,6 +20,7 @@ Give an overview of the repository structure amd use cases
 
 
 ## 5. Visualize the results of the trained model using ./code/visualize
+
 
 ## Contact info
 Put contact information here. Preferably email/phone, and maybe social media?
