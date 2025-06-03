@@ -1,128 +1,114 @@
-# Use continuumio/miniconda3 as a parent image
-FROM continuumio/miniconda3
+FROM ubuntu:20.04 as builder
 
-# Set environment variables to prevent interactive prompts during installation
-ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Etc/UTC
+# Set an encoding to make things work smoothly.
+ENV LANG en_US.UTF-8
+ENV TZ US/Pacific
+ARG DEBIAN_FRONTEND=noninteractive
 
-# Switch to root to install system packages
-USER root
-
-# Install system dependencies & common tools for development
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    bzip2 \
-    ca-certificates \
-    git \
-    openssh-client \
-    # For VS Code features like port forwarding, git integration
-    gnupg \
-    lsb-release \
-    # Dependencies for ISCE2
-    build-essential \
-    gfortran \
-    libgdal-dev \
-    gdal-bin \
+RUN set -ex \
+ && apt-get update \
+ && apt-get install -y \
     cmake \
-    scons \
-    libfftw3-dev \
-    libhdf5-dev \
-    libmotif-dev \
-    libx11-dev \
-    libxt-dev \
-    libxm4 \
     cython3 \
-    libglu1-mesa-dev \
-    freeglut3-dev \
-    mesa-common-dev \
-    # Clean up apt cache
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    gfortran \
+    git \
+    libfftw3-dev \
+    libgdal-dev \
+    libhdf4-alt-dev \
+    libhdf5-dev \
+    libopencv-dev \
+    ninja-build \
+    python3-gdal \
+    python3-h5py \
+    python3-numpy \
+    python3-scipy \
+ && echo done
 
-# Create a non-root user for VS Code and general work
-# You can change 'vscode' to your preferred username
-ARG USERNAME=vscode
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
+# copy repo
+COPY . /opt/isce2/src/isce2
 
-RUN groupadd --gid $USER_GID $USERNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    # Add to sudo group (optional, but often useful)
-    && apt-get update && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# build ISCE
+RUN set -ex \
+ && cd /opt/isce2/src/isce2 \
+ && mkdir build && cd build \
+ && cmake .. \
+        -DPYTHON_MODULE_DIR="$(python3 -c 'import site; print(site.getsitepackages()[-1])')" \
+        -DCMAKE_INSTALL_PREFIX=install \
+ && make -j8 install \
+ && cpack -G DEB \
+ && cp isce*.deb /tmp/
 
-# Create and configure the Conda environment
-ENV CONDA_ENV_NAME insar
-# Run conda operations as the user who will own the environment
-# but first ensure /opt/conda is writable by the new user or a group they are in.
-# Or, better, run conda create as root, then chown. For simplicity here:
-RUN /opt/conda/bin/conda create -n $CONDA_ENV_NAME python=3.10 -y
+FROM ubuntu:20.04
 
-# Set the default shell to bash and activate the conda environment for subsequent RUN, CMD, ENTRYPOINT
-SHELL ["/opt/conda/bin/conda", "run", "-n", "$CONDA_ENV_NAME", "/bin/bash", "-c"]
+# Set an encoding to make things work smoothly.
+ENV LANG en_US.UTF-8
+ENV TZ US/Pacific
+ARG DEBIAN_FRONTEND=noninteractive
 
-# Install common Python packages
-RUN conda install -c conda-forge --yes \
-    numpy \
-    scipy \
-    matplotlib \
-    h5py \
-    gdal \
-    cython \
-    requests \
-    pyyaml \
-    lxml \
-    setuptools \
-    wheel \
-    pip \
-    && conda clean -tipy
+RUN set -ex \
+ && apt-get update \
+ && apt-get install -y \
+    libfftw3-3 \
+    libgdal26 \
+    libhdf4-0 \
+    libhdf5-103 \
+    libopencv-core4.2 \
+    libopencv-highgui4.2 \
+    libopencv-imgproc4.2 \
+    python3-gdal \
+    python3-h5py \
+    python3-numpy \
+    python3-scipy \
+ && echo done
 
-# Install ISCE2
-ENV CONDA_PREFIX /opt/conda/envs/$CONDA_ENV_NAME
-RUN mkdir -p /usr/local/src/isce2 && \
-    # Temporarily switch to root for installation into system-like paths if necessary, or ensure user has rights
-    # For ISCE2, installing into the conda env prefix is usually fine
-    # chown $USERNAME:$USERNAME -R /usr/local/src/isce2 # If creating as root and want user to own source
-    # USER $USERNAME # If you want the build to run as the user
-    git clone https://github.com/isce-framework/isce2.git /usr/local/src/isce2 && \
-    cd /usr/local/src/isce2 && \
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX \
-             -DPYTHON_EXECUTABLE=$CONDA_PREFIX/bin/python \
-             -DPYTHON_INCLUDE_DIR=$CONDA_PREFIX/include/python3.9 \
-             -DPYTHON_LIBRARY=$CONDA_PREFIX/lib/libpython3.9.so && \
-    make -j$(nproc) && \
-    make install && \
-    cd / && rm -rf /usr/local/src/isce2
-    # USER root # Switch back if needed for subsequent root operations, then back to user
+# install ISCE from DEB
+COPY --from=builder /tmp/isce*.deb /tmp/isce2.deb
 
-# Set ISCE_HOME and update PYTHONPATH for ISCE2
-ENV ISCE_HOME $CONDA_PREFIX/isce
-ENV PYTHONPATH $ISCE_HOME/applications:$ISCE_HOME/components:$PYTHONPATH
-ENV PATH $ISCE_HOME/bin:$PATH
+RUN dpkg -i /tmp/isce2.deb
 
-# Make ISCE environment settings persistent for interactive sessions within the conda env
-RUN echo ". $ISCE_HOME/isce_env.sh" >> $CONDA_PREFIX/etc/conda/activate.d/isce_env.sh && \
-    echo "unset ISCE_HOME PYTHONPATH" >> $CONDA_PREFIX/etc/conda/deactivate.d/isce_env.sh
+RUN ln -s /usr/lib/python3.8/dist-packages/isce2 /usr/lib/python3.8/dist-packages/isce
 
-# Install MintPy
-RUN pip install --no-cache-dir git+https://github.com/insarlab/MintPy.git
+# Stage 2: Final image - Install ISCE2, Miniconda, and MintPy
+# Start from a base image that includes Conda/Mambaforge for easier management
+FROM condaforge/mambaforge:latest AS final_conda
 
-# Install PyAPS
-RUN pip install --no-cache-dir PyAPS
+# Install ISCE2's system dependencies (the ones that aren't Python packages)
+# Note: You'll still need ISCE2's runtime system dependencies like libfftw3-3, etc.
+# These might be slightly different versions or names in conda-forge.
+RUN set -ex \
+ && apt-get update && apt-get install -y --no-install-recommends \
+    libfftw3-3 \
+    libgdal26 \
+    libhdf4-0 \
+    libhdf5-103 \
+    libopencv-core4.2 \
+    libopencv-highgui4.2 \
+    libopencv-imgproc4.2 \
+    # Potentially other ISCE2 system deps that aren't part of conda-forge ISCE2
+ && rm -rf /var/lib/apt/lists/* \
+ && echo "System dependencies for ISCE2 installed."
 
-# Switch to the non-root user for VS Code
-USER $USERNAME
+# Install ISCE from DEB (compiled in the builder stage)
+COPY --from=builder /tmp/isce*.deb /tmp/isce2.deb
+RUN dpkg -i /tmp/isce2.deb && rm /tmp/isce2.deb
 
-# Set working directory for the user
-WORKDIR /home/$USERNAME/workspace
+# Create symlink for ISCE2
+RUN ln -s /usr/lib/python3.8/dist-packages/isce2 /usr/lib/python3.8/dist-packages/isce
 
-# Reminder (this RUN command will execute as $USERNAME)
-RUN echo "Successfully built ISCE2 and MintPy environment '$CONDA_ENV_NAME'." && \
-    echo "The conda environment '$CONDA_ENV_NAME' should be active by default."
+# Create a Conda environment for MintPy and other tools
+# It's highly recommended to use an environment.yml file for this.
+COPY environment.yml /tmp/environment.yml
+RUN mamba env update -n base -f /tmp/environment.yml && \
+    mamba clean --all -f -y && \
+    rm -rf /tmp/environment.yml
 
-# The CMD is usually overridden by devcontainer.json, but good to have a default
-CMD ["/bin/bash"]
+# Set environment variables for ISCE2 (if not already handled by Conda or installation)
+# Ensure the ISCE2 path is discoverable.
+ENV ISCE_HOME=/usr/lib/python3.8/dist-packages/isce2 
+ENV PATH=$ISCE_HOME/bin:$PATH
+ENV PYTHONPATH=$ISCE_HOME/lib:$PYTHONPATH
+
+# Set working directory
+WORKDIR /app
+EXPOSE 8888
+CMD ["jupyter", "lab", "--port=8888", "--no-browser", "--allow-root", "--ip=0.0.0.0"]
