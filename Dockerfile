@@ -24,10 +24,14 @@ RUN set -ex \
     python3-scipy \
  && echo done
 
-# copy repo
-COPY . /opt/isce2/src/isce2
+# --- CHANGE STARTS HERE ---
+# Instead of COPY ., clone the ISCE2 repository directly
+WORKDIR /opt/isce2/src/isce2
+RUN git clone https://github.com/isce-framework/isce2.git .
+# --- CHANGE ENDS HERE ---
 
 # build ISCE
+# No change needed here, as the source is now in /opt/isce2/src/isce2
 RUN set -ex \
  && cd /opt/isce2/src/isce2 \
  && mkdir build && cd build \
@@ -38,6 +42,9 @@ RUN set -ex \
  && cpack -G DEB \
  && cp isce*.deb /tmp/
 
+# --- (Rest of your Dockerfile, including the final stage with MintPy, unchanged) ---
+
+# Stage 2: Final image - Install ISCE2 and add MintPy
 FROM ubuntu:20.04
 
 # Set an encoding to make things work smoothly.
@@ -45,9 +52,10 @@ ENV LANG en_US.UTF-8
 ENV TZ US/Pacific
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Install core runtime dependencies for ISCE2 + system dependencies for MintPy
 RUN set -ex \
  && apt-get update \
- && apt-get install -y \
+ && apt-get install -y --no-install-recommends \
     libfftw3-3 \
     libgdal26 \
     libhdf4-0 \
@@ -55,60 +63,28 @@ RUN set -ex \
     libopencv-core4.2 \
     libopencv-highgui4.2 \
     libopencv-imgproc4.2 \
-    python3-gdal \
-    python3-h5py \
-    python3-numpy \
-    python3-scipy \
+    python3-pip \
+    python3-setuptools \
+    libnetcdf-dev \
+    python3-tk \
+ && rm -rf /var/lib/apt/lists/* \
  && echo done
 
 # install ISCE from DEB
 COPY --from=builder /tmp/isce*.deb /tmp/isce2.deb
-
-RUN dpkg -i /tmp/isce2.deb
-
-RUN ln -s /usr/lib/python3.8/dist-packages/isce2 /usr/lib/python3.8/dist-packages/isce
-
-# Stage 2: Final image - Install ISCE2, Miniconda, and MintPy
-# Start from a base image that includes Conda/Mambaforge for easier management
-FROM condaforge/mambaforge:latest AS final_conda
-
-# Install ISCE2's system dependencies (the ones that aren't Python packages)
-# Note: You'll still need ISCE2's runtime system dependencies like libfftw3-3, etc.
-# These might be slightly different versions or names in conda-forge.
-RUN set -ex \
- && apt-get update && apt-get install -y --no-install-recommends \
-    libfftw3-3 \
-    libgdal26 \
-    libhdf4-0 \
-    libhdf5-103 \
-    libopencv-core4.2 \
-    libopencv-highgui4.2 \
-    libopencv-imgproc4.2 \
-    # Potentially other ISCE2 system deps that aren't part of conda-forge ISCE2
- && rm -rf /var/lib/apt/lists/* \
- && echo "System dependencies for ISCE2 installed."
-
-# Install ISCE from DEB (compiled in the builder stage)
-COPY --from=builder /tmp/isce*.deb /tmp/isce2.deb
 RUN dpkg -i /tmp/isce2.deb && rm /tmp/isce2.deb
 
-# Create symlink for ISCE2
 RUN ln -s /usr/lib/python3.8/dist-packages/isce2 /usr/lib/python3.8/dist-packages/isce
 
-# Create a Conda environment for MintPy and other tools
-# It's highly recommended to use an environment.yml file for this.
-COPY environment.yml /tmp/environment.yml
-RUN mamba env update -n base -f /tmp/environment.yml && \
-    mamba clean --all -f -y && \
-    rm -rf /tmp/environment.yml
+# Install MintPy and its core Python dependencies using pip
+RUN set -ex \
+ && pip3 install --no-cache-dir \
+    mintpy \
+    jupyter \
+    notebook \
+    dask \
+ && echo done
 
-# Set environment variables for ISCE2 (if not already handled by Conda or installation)
-# Ensure the ISCE2 path is discoverable.
-ENV ISCE_HOME=/usr/lib/python3.8/dist-packages/isce2 
-ENV PATH=$ISCE_HOME/bin:$PATH
-ENV PYTHONPATH=$ISCE_HOME/lib:$PYTHONPATH
-
-# Set working directory
 WORKDIR /app
 EXPOSE 8888
 CMD ["jupyter", "lab", "--port=8888", "--no-browser", "--allow-root", "--ip=0.0.0.0"]
