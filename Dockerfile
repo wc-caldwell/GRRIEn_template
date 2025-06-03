@@ -1,23 +1,21 @@
-FROM debian:bullseye-slim
+# dockerfile with miniconda3 base image
+FROM continuumio/miniconda3
 
-# System dependencies
-RUN apt-get update && apt-get install -y \
-    wget \
-    bzip2 \
-    ca-certificates \
-    curl \
-    git \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /temp_data
 
-# Install Miniconda
-ENV CONDA_DIR=/opt/conda
-ENV PATH=$CONDA_DIR/bin:$PATH
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
-    bash /tmp/miniconda.sh -b -p $CONDA_DIR && \
-    rm /tmp/miniconda.sh && \
-    conda clean -afy
+# Create the environment:
+COPY environment.yml .
+RUN conda env create --name test --file environment.yml
 
-# Install mamba inside base conda
-RUN conda install -n base -c conda-forge mamba && \
-    conda clean -afy
+# Make RUN commands use the new environment:
+RUN echo "conda activate myenv" >> ~/.bashrc
+SHELL ["/bin/bash", "--login", "-c"]
+
+# Demonstrate the environment is activated:
+RUN echo "Make sure numpy is installed:"
+RUN python -c "import numpy"
+
+# The code to run when container is started:
+COPY . .
+ENTRYPOINT ["./setup.sh"]
+
