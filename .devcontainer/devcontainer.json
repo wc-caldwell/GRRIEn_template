@@ -1,14 +1,16 @@
 {
-  "name": "GRRIEn Dev",
+  "name": "GRRIEn DevContainer",
   "build": {
-    "dockerfile": "../Dockerfile"
+    "dockerfile": "../Dockerfile",
+    "context": ".."
   },
-  "context": "..",
   "workspaceFolder": "/app",
   "settings": {
-    "python.pythonPath": "/opt/conda/envs/test/bin/python"
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "python.pythonPath": "/opt/conda/envs/grrien/bin/python"
   },
   "extensions": [
-    "ms-python.python"
+    "ms-python.python",
+    "ms-azuretools.vscode-docker"
   ]
 }
