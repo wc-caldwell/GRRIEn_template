@@ -24,8 +24,8 @@ ENV PYTHONPATH="/opt/isce2:${PYTHONPATH}"
 
 # 2) Switch back to /app and create the conda environment
 WORKDIR /app
-COPY environment.yml .
-RUN conda env create -n grrien -f environment.yml && \
+COPY env.yml .
+RUN conda env create -n grrien -f env.yml && \
     conda clean -a
 
 # All subsequent RUN/CMD will use the 'grrien' env by default
