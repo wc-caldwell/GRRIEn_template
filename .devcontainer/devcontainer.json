@@ -1,0 +1,14 @@
+{
+  "name": "GRRIEn Dev",
+  "build": {
+    "dockerfile": "../Dockerfile"
+  },
+  "context": "..",
+  "workspaceFolder": "/app",
+  "settings": {
+    "python.pythonPath": "/opt/conda/envs/test/bin/python"
+  },
+  "extensions": [
+    "ms-python.python"
+  ]
+}
