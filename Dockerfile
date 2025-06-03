@@ -1,17 +1,27 @@
-# Use Miniconda base image for conda + pip
+# Base image with conda + pip support
 FROM continuumio/miniconda3
 
-# Switch to /app and create the 'insar' conda environment
+# Install any system‐level libraries MintPy needs (e.g. GDAL)
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      libgdal-dev gdal-bin \
+      && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Switch to /app (where your repo will be mounted)
 WORKDIR /app
-COPY env.yml .
-RUN conda env create -n insar -f env.yml && \
+
+# Copy only the environment spec
+COPY environment.yml .
+
+# Create a conda env called "grrien" with MintPy
+RUN conda env create -n grrien -f environment.yml && \
     conda clean -a
 
-# Ensure all subsequent commands run inside 'insar' env
-SHELL ["conda", "run", "-n", "insar", "/bin/bash", "-c"]
+# Ensure subsequent commands use that env
+SHELL ["conda", "run", "-n", "grrien", "/bin/bash", "-c"]
 
-# Copy in the rest of the repository (including setup.sh, code/, etc.)
+# Copy the rest of your repo (including setup.sh, code/, etc.)
 COPY . .
 
-# Default to running setup.sh when the container starts
+# When the container launches, run setup.sh
 CMD ["bash", "setup.sh"]
