@@ -1,16 +1,28 @@
+// .devcontainer/devcontainer.json
 {
-  "name": "GRRIEn InSAR DevContainer",
-  "build": {
-    "dockerfile": "../Dockerfile",
-    "context": ".."
-  },
-  "workspaceFolder": "/home/vscode/workspace",
-  "settings": {
-    "terminal.integrated.defaultProfile.linux": "bash",
-    "python.pythonPath": "/opt/conda/envs/insar/bin/python"
-  },
-  "extensions": [
-    "ms-python.python",
-    "ms-azuretools.vscode-docker"
-  ]
+    "name": "SBAS-InSAR Dev Environment (ISCE2 + MintPy)",
+    "build": {
+        "dockerfile": "../Dockerfile", // Points to your combined Dockerfile in the parent directory
+        "context": ".." // Sets the build context to the project root, so Docker can find everything
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python", // Essential for Python development
+                "ms-toolsai.jupyter", // For Jupyter Notebooks/Lab integration
+                "donjayamanne.python-environment-manager", // Useful for managing Conda/Python envs
+                "redhat.vscode-yaml", // For editing YAML files (like environment.yml)
+                // Add any other VS Code extensions you find useful for your workflow
+            ],
+            "settings": {
+                // Optional: Customize VS Code settings specifically for this container
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "python.pythonPath": "/opt/conda/bin/python", // If using Conda (adjust path)
+                "jupyter.notebookFileRoot": "/app" // Set the root for notebooks
+            }
+        }
+    },
+    "forwardPorts": [8888], // Forward Jupyter Lab port
+    "postCreateCommand": "bash -c 'if [ -f /opt/conda/bin/activate ]; then source /opt/conda/bin/activate base; fi'", // Example if using conda, activates base env
+    "remoteUser": "root" // Or whatever user you want VS Code to connect as inside the container
 }
