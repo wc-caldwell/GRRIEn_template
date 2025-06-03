@@ -1,21 +1,19 @@
-# dockerfile with miniconda3 base image
+# Use official Miniconda base image
 FROM continuumio/miniconda3
 
-WORKDIR /temp_data
+# Set working directory inside the container
+WORKDIR /.
 
-# Create the environment:
+# Copy environment file and install Conda environment
 COPY environment.yml .
-RUN conda env create --name test --file environment.yml
+RUN conda env create -n test -f environment.yml && \
+    conda clean -a
 
-# Make RUN commands use the new environment:
-RUN echo "conda activate myenv" >> ~/.bashrc
-SHELL ["/bin/bash", "--login", "-c"]
+# Set default shell to use the Conda env
+SHELL ["conda", "run", "-n", "test", "/bin/bash", "-c"]
 
-# Demonstrate the environment is activated:
-RUN echo "Make sure numpy is installed:"
-RUN python -c "import numpy"
-
-# The code to run when container is started:
+# Copy the rest of your repo (including setup.sh, code/, etc.)
 COPY . .
-ENTRYPOINT ["./setup.sh"]
 
+# Run setup.sh when the container starts (optional)
+CMD ["bash", "setup.sh"]
