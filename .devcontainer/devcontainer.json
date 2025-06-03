@@ -1,5 +1,5 @@
 {
-  "name": "GRRIEn DevContainer",
+  "name": "GRRIEn-MintPy",
   "build": {
     "dockerfile": "../Dockerfile",
     "context": ".."

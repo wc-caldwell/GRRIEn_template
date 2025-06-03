@@ -1,33 +1,24 @@
 #!/bin/bash --login
-# setup.sh – initialize GRRIEn reproducible environment
+# setup.sh – initialize MintPy environment, create temp_data
 
-# 0) Relax strict mode until conda is loaded
+# 1) Don’t fail until conda is ready
 set +euo pipefail
 
-# 1) Source conda’s initialization script
+# 2) Source & activate the "grrien" env
 source /opt/conda/etc/profile.d/conda.sh
-
-# 2) Activate the 'grrien' environment
 conda activate grrien
 
-# 3) Enable strict mode from here onward
+# 3) Enable strict mode now that conda is active
 set -euo pipefail
 
-# 4) Create a temporary working folder on the host (mounted into /app)
+# 4) Create a local temp_data folder (host‐mounted under /app)
 mkdir -p /app/temp_data
-echo "[GRRIEn Setup] Created temp_data at /app/temp_data"
+echo "[Setup] Created /app/temp_data"
 
-# 5) (Optional) Install any pip-only deps not covered by environment.yml
-# pip install -r /app/requirements.txt
-
-# 6) Confirm & export environment for provenance
-echo "[GRRIEn Setup] Conda env 'grrien' is active"
-conda list
-echo "[GRRIEn Setup] Exporting environment spec to temp_data/"
-conda env export > /app/temp_data/env_export.yml
+# 5) (Optional) export environment specs for provenance
+echo "[Setup] Exporting environment spec"
+conda list > /app/temp_data/conda_list.txt
 pip freeze > /app/temp_data/pip_freeze.txt
 
-# 7) Ready to run your pipeline. You can now call:
-#       python code/run.py
-#    or any other script under code/
-echo "[GRRIEn Setup] Environment initialized. You can now run your pipeline scripts."
+echo "[Setup] MintPy environment ready. You can now run:"
+echo "    mintpy smallbaselineApp.py <path_to_hyp3_stack.h5> --dofile config.txt"
