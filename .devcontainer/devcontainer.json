@@ -1,13 +1,13 @@
 {
-  "name": "GRRIEn-MintPy",
+  "name": "GRRIEn InSAR DevContainer",
   "build": {
     "dockerfile": "../Dockerfile",
     "context": ".."
   },
-  "workspaceFolder": "/app",
+  "workspaceFolder": "/home/vscode/workspace",
   "settings": {
     "terminal.integrated.defaultProfile.linux": "bash",
-    "python.defaultInterpreterPath": "/opt/conda/envs/grrien/bin/python"
+    "python.pythonPath": "/opt/conda/envs/insar/bin/python"
   },
   "extensions": [
     "ms-python.python",
