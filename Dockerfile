@@ -11,10 +11,10 @@ RUN apt-get update && \
 WORKDIR /app
 
 # Copy only the environment spec
-COPY environment.yml .
+COPY env.yml .
 
 # Create a conda env called "grrien" with MintPy
-RUN conda env create -n grrien -f environment.yml && \
+RUN conda env create -n grrien -f env.yml && \
     conda clean -a
 
 # Ensure subsequent commands use that env
