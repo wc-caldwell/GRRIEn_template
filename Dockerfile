@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as builder
+FROM ubuntu:24.04 as builder
 
 # Set an encoding to make things work smoothly.
 ENV LANG en_US.UTF-8
@@ -45,7 +45,7 @@ RUN set -ex \
 # --- (Rest of your Dockerfile, including the final stage with MintPy, unchanged) ---
 
 # Stage 2: Final image - Install ISCE2 and add MintPy
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 # Set an encoding to make things work smoothly.
 ENV LANG en_US.UTF-8
@@ -85,6 +85,6 @@ RUN set -ex \
     dask \
  && echo done
 
-WORKDIR /app
+WORKDIR /temp_data
 EXPOSE 8888
 CMD ["jupyter", "lab", "--port=8888", "--no-browser", "--allow-root", "--ip=0.0.0.0"]
